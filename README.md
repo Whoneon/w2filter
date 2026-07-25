@@ -1,5 +1,8 @@
 # w2filter: certified exhaustive filter for prescribed cycle spectra
 
+[![ci](https://github.com/Whoneon/w2filter/actions/workflows/ci.yml/badge.svg)](https://github.com/Whoneon/w2filter/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21575202.svg)](https://doi.org/10.5281/zenodo.21575202)
+
 Streaming filter for the graph6 output of `nauty-geng`: it selects
 the graphs whose **cycle spectrum** (the set of lengths of simple
 cycles) is contained in a prescribed set W, checks
