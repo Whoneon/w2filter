@@ -1,0 +1,36 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps
+        run: |
+          sudo apt-get update && sudo apt-get install -y nauty
+          pip install networkx
+      - name: build (with -Werror)
+        run: ${{ matrix.cc }} -O3 -Wall -Wextra -Werror -o w2filter w2filter.c
+      - name: anchors (asserted)
+        run: make test CC=${{ matrix.cc }}
+      - name: independent verification
+        run: make verify && make verify-param
+      - name: randomized verification (seed in log)
+        run: make verify-random
+      - name: sanitizers
+        run: |
+          ${{ matrix.cc }} -O1 -g -fsanitize=address,undefined \
+            -o w2filter_san w2filter.c
+          nauty-geng -q -f -C 12 17:17 | ./w2filter_san 12 | tail -1
+      - name: hostile inputs (contractual exit codes)
+        run: |
+          ./w2filter --version
+          ec=0; timeout 5 ./w2filter 12 --cycles abc < /dev/null || ec=$?
+          test "$ec" -eq 2
+          ec=0; ./w2filter 12 --typo 3 < /dev/null || ec=$?
+          test "$ec" -eq 2
+          ec=0; printf 'J?AA\n' | ./w2filter 11 || ec=$?
+          test "$ec" -eq 3

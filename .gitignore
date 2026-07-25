@@ -1,0 +1,9 @@
+w2filter
+w2filter_san
+*.o
+paper/*.aux
+paper/*.log
+paper/*.out
+PUBLISHING.md
+REVIEW.md
+review_tests/

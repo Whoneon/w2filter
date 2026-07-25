@@ -1,0 +1,10 @@
+V,E,graphs,impl,gps
+11,15,947,w2filter (C),1137383
+11,15,947,stdlib port,22031
+11,15,947,networkx checker,2583
+12,17,6905,w2filter (C),1798316
+12,17,6905,stdlib port,30424
+12,17,6905,networkx checker,3688
+14,20,490047,w2filter (C),2158486
+14,20,490047,stdlib port,36280
+14,20,490047,networkx checker,3019

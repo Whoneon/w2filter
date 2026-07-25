@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "w2filter: a certified exhaustive streaming filter for graphs with prescribed cycle spectrum"
+authors:
+  - family-names: "Guastella"
+    given-names: "Antonio"
+    email: "antonioguastella99@gmail.com"
+version: 1.0.0
+date-released: 2026-07-25
+license: MIT
+repository-code: "https://github.com/Whoneon/w2filter"
+keywords:
+  - graph enumeration
+  - cycle spectrum
+  - extremal graph theory
+  - nauty
+  - Erdos-Gyarfas conjecture
