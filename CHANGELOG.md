@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-07-26)
 
 - New options: `--degeneracy K` (peeling threshold, default 2),
   `--no-degeneracy` (skip the stage: required for censuses of
