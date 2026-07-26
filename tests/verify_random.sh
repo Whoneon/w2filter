@@ -29,8 +29,8 @@ while [ "$i" -lt "$ROUNDS" ]; do
   echo "  round $i: n=$n m=$m --cycles $W --pairset $P"
   a=$(nauty-geng -q "$n" "$m:$m" 2>/dev/null | \
       ./w2filter "$n" --cycles "$W" --pairset "$P" 2>/dev/null | \
-      grep "^BLOCCO-W2" | \
-      sed 's/BLOCCO-W2 V=[0-9]* g6=//; s/ graftabili=/|/' | \
+      grep "^BLOCK " | \
+      sed 's/BLOCK V=[0-9]* g6=//; s/ pairs=/|/' | \
       tr -d ' ' | LC_ALL=C sort)
   b=$(nauty-geng -q "$n" "$m:$m" 2>/dev/null | \
       { $PY tests/indep_check.py "$n" --cycles "$W" --pairset "$P" \

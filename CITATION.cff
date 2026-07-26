@@ -5,8 +5,8 @@ authors:
   - family-names: "Guastella"
     given-names: "Antonio"
     email: "antonioguastella99@gmail.com"
-version: 1.0.0
-date-released: 2026-07-25
+version: 1.1.0
+date-released: 2026-07-26
 doi: 10.5281/zenodo.21575202
 license: MIT
 repository-code: "https://github.com/Whoneon/w2filter"

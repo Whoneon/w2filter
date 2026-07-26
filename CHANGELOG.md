@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0 (unreleased)
+
+- New options: `--degeneracy K` (peeling threshold, default 2),
+  `--no-degeneracy` (skip the stage: required for censuses of
+  classes with minimum degree >= 3, which are never 2-degenerate
+  and would otherwise be discarded silently), `--no-pairs`.
+- English output labels by default (`BLOCK`, `pairs`, `seen`,
+  `blocks`, `discarded`, `survivors`); `--format legacy-it`
+  reproduces the v1.0.0 output byte-for-byte (the format of the
+  shipped campaign logs in `results/`).
+- One-line provenance header on stderr: version and the full
+  effective parameter set, so every worker log self-documents.
+- New anchor assertions: legacy format, degeneracy and pairs flags.
+
 ## 1.0.0 (2026-07-25)
 
 First public release.

@@ -26,8 +26,8 @@ GENG_CHECK = command -v nauty-geng >/dev/null 2>&1 || \
 verify: w2filter
 	@$(GENG_CHECK); for VE in "11 15" "12 17" "14 20"; do set -- $$VE; \
 	  a=$$(nauty-geng -q -f -C $$1 $$2:$$2 | ./w2filter $$1 2>/dev/null \
-	      | grep "^BLOCCO-W2" \
-	      | sed 's/BLOCCO-W2 V=[0-9]* g6=//; s/ graftabili=/|/' \
+	      | grep "^BLOCK " \
+	      | sed 's/BLOCK V=[0-9]* g6=//; s/ pairs=/|/' \
 	      | tr -d ' ' | LC_ALL=C sort); \
 	  b=$$(nauty-geng -q -f -C $$1 $$2:$$2 | \
 	      { $(PY) tests/indep_check.py $$1 || echo CHECKER-ERROR; } \
@@ -43,8 +43,8 @@ verify: w2filter
 verify-param: w2filter
 	@$(GENG_CHECK); a=$$(nauty-geng -q -c 10 13:13 | \
 	     ./w2filter 10 --cycles 3,4,5,6,7,9 --pairset 1,3,5 2>/dev/null \
-	     | grep "^BLOCCO-W2" \
-	     | sed 's/BLOCCO-W2 V=[0-9]* g6=//; s/ graftabili=/|/' \
+	     | grep "^BLOCK " \
+	     | sed 's/BLOCK V=[0-9]* g6=//; s/ pairs=/|/' \
 	     | tr -d ' ' | LC_ALL=C sort); \
 	 b=$$(nauty-geng -q -c 10 13:13 | \
 	     { $(PY) tests/indep_check.py 10 --cycles 3,4,5,6,7,9 \

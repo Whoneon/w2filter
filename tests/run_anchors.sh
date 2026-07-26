@@ -31,8 +31,8 @@ chk() {  # chk V E expected_blocks expected_graftable
     return 0
   fi
   out=$(gen "$1" "$2" | ./w2filter "$1" 2>/dev/null)
-  nb=$(echo "$out" | grep -c "^BLOCCO-W2" || true)
-  ng=$(echo "$out" | grep -c "graftabili=\[(" || true)
+  nb=$(echo "$out" | grep -c "^BLOCK " || true)
+  ng=$(echo "$out" | grep -c "pairs=\[(" || true)
   if [ "$nb" != "$3" ] || [ "$ng" != "$4" ]; then
     echo "FAIL ($1,$2): blocks $nb/$3 graftable $ng/$4"; fail=1
   else
@@ -46,7 +46,7 @@ chk 14 20 2 0
 # LC_ALL=C pins byte collation: with a UTF-8 locale, sort may order
 # these lines differently and the comparison would break.
 pairs=$(gen 11 15 | ./w2filter 11 2>/dev/null | \
-        grep "graftabili=\[(" | sed 's/.*graftabili=//' | \
+        grep "pairs=\[(" | sed 's/.*pairs=//' | \
         LC_ALL=C sort | tr -d ' ')
 exp='[(3,10)]
 [(4,9),(4,10)]
@@ -55,5 +55,25 @@ if [ "$pairs" != "$exp" ]; then
   echo "FAIL pairs (11,15):"; echo "$pairs"; fail=1
 else
   echo "OK   pairs (11,15) exact"
+fi
+# --format legacy-it must reproduce the v1.0.0 labels byte-for-byte
+nleg=$(gen 11 15 | ./w2filter 11 --format legacy-it 2>/dev/null | \
+       grep -c "^BLOCCO-W2 .*graftabili=" || true)
+if [ "$nleg" != "8" ]; then
+  echo "FAIL legacy-it format: $nleg/8"; fail=1
+else
+  echo "OK   legacy-it format: 8 blocks"
+fi
+# degeneracy flags on K4 (g6 'C~'): spectrum {3,4} but K4 is
+# 3-regular, hence not 2-degenerate. Default rejects; --no-degeneracy
+# and --degeneracy 3 must both accept.
+k4_def=$(printf 'C~\n' | ./w2filter 4 --cycles 3,4 2>/dev/null | grep -c "^BLOCK " || true)
+k4_nod=$(printf 'C~\n' | ./w2filter 4 --cycles 3,4 --no-degeneracy 2>/dev/null | grep -c "^BLOCK " || true)
+k4_d3=$(printf 'C~\n' | ./w2filter 4 --cycles 3,4 --degeneracy 3 2>/dev/null | grep -c "^BLOCK " || true)
+k4_nop=$(printf 'C~\n' | ./w2filter 4 --cycles 3,4 --no-degeneracy --no-pairs 2>/dev/null | grep -c "^BLOCK V=4 g6=C~$" || true)
+if [ "$k4_def$k4_nod$k4_d3$k4_nop" != "0111" ]; then
+  echo "FAIL degeneracy flags on K4: got $k4_def/$k4_nod/$k4_d3/$k4_nop, want 0/1/1/1"; fail=1
+else
+  echo "OK   degeneracy and pairs flags (K4)"
 fi
 exit $fail

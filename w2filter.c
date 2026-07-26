@@ -91,6 +91,10 @@ static int Lmax = 7;                /* max allowed cycle length      */
 static unsigned goodset =           /* graftable path lengths        */
     (1u<<1)|(1u<<3)|(1u<<4)|(1u<<5);
 static int Pmax = 5;                /* max length in goodset         */
+static int degcap = 2;              /* degeneracy threshold (peeling) */
+static int do_deg = 1;              /* 0: skip the degeneracy stage   */
+static int do_pairs = 1;            /* 0: skip pair classification    */
+static int legacy = 0;              /* 1: v1.0.0 output labels (IT)   */
 static long long c_seen, c_quick, c_exact, c_deg, c_found; /* stages */
 static unsigned adjmask[32];        /* adjacency bitmasks            */
 static int adj[32][32], deg[32];    /* adjacency lists               */
@@ -219,13 +223,15 @@ static int exact_long(void) {
 }
 
 /* ------------------------------------------------------------
- * is_2deg: 2-degeneracy by peeling. A graph is 2-degenerate iff
- * iterated removal of vertices of degree <= 2 empties it. The
- * peeling is confluent (order does not matter): a removable
- * vertex stays removable after other removals. Hence the test
- * "remove while possible, check whether anything remains" is
- * exact. (2-degeneracy is the hypothesis of the rho_2 density
- * class.)
+ * is_2deg: K-degeneracy by peeling (K = degcap, default 2). A
+ * graph is K-degenerate iff iterated removal of vertices of
+ * degree <= K empties it. The peeling is confluent (order does
+ * not matter): a removable vertex stays removable after other
+ * removals. Hence the test "remove while possible, check whether
+ * anything remains" is exact. (2-degeneracy is the hypothesis of
+ * the rho_2 density class; --no-degeneracy skips this stage for
+ * censuses of classes with minimum degree >= 3, which are never
+ * 2-degenerate.)
  * ------------------------------------------------------------ */
 static int is_2deg(void) {
     int dd[32], alive = N;
@@ -236,7 +242,7 @@ static int is_2deg(void) {
     while (alive && removed) {
         removed = 0;
         for (int v = 0; v < N; v++) {
-            if (dd[v] >= 0 && dd[v] <= 2) {
+            if (dd[v] >= 0 && dd[v] <= degcap) {
                 for (int w = 0; w < N; w++)
                     if (am[v] >> w & 1) { am[w] &= ~(1u << v); dd[w]--; }
                 dd[v] = -1; am[v] = 0; alive--; removed = 1;
@@ -333,16 +339,27 @@ static unsigned parse_set(const char *arg, int *mx) {
     return m;
 }
 
-#define W2FILTER_VERSION "1.0.0"
+#define W2FILTER_VERSION "1.1.0"
 
 static void usage(FILE *f) {
     fprintf(f,
-        "usage: w2filter N [--cycles a,b,...] [--pairset a,b,...]\n"
-        "  N          expected number of vertices (3..31)\n"
-        "  --cycles   allowed cycle lengths W (default 3,5,6,7)\n"
-        "  --pairset  allowed path lengths P (default 1,3,4,5)\n"
+        "usage: w2filter N [options]\n"
+        "  N                expected number of vertices (3..31)\n"
+        "  --cycles a,b,..  allowed cycle lengths W (default 3,5,6,7)\n"
+        "  --pairset a,b,.. allowed path lengths P (default 1,3,4,5)\n"
+        "  --degeneracy K   degeneracy threshold (default 2)\n"
+        "  --no-degeneracy  skip the degeneracy stage entirely\n"
+        "  --no-pairs       skip graftable-pair classification\n"
+        "  --format F       output labels: en (default) or legacy-it\n"
+        "                   (byte-identical to the v1.0.0 output)\n"
         "reads graph6 from stdin; exit codes: 0 ok, 2 invalid\n"
         "options, 3 at least one input line discarded.\n");
+}
+
+static void print_set(FILE *f, unsigned m) {
+    int first = 1;
+    for (int L = 1; L <= 31; L++)
+        if (m >> L & 1) { fprintf(f, "%s%d", first ? "" : ",", L); first = 0; }
 }
 
 int main(int argc, char **argv) {
@@ -363,6 +380,20 @@ int main(int argc, char **argv) {
             goodset = parse_set(argv[++i], &Pmax);
             if (!goodset) { fprintf(stderr,
                 "w2filter: invalid --pairset: %s\n", argv[i]); return 2; }
+        } else if (!strcmp(argv[i], "--degeneracy") && i + 1 < argc) {
+            degcap = atoi(argv[++i]);
+            if (degcap < 1 || degcap > 30) { fprintf(stderr,
+                "w2filter: invalid --degeneracy: %s\n", argv[i]); return 2; }
+        } else if (!strcmp(argv[i], "--no-degeneracy")) {
+            do_deg = 0;
+        } else if (!strcmp(argv[i], "--no-pairs")) {
+            do_pairs = 0;
+        } else if (!strcmp(argv[i], "--format") && i + 1 < argc) {
+            i++;
+            if (!strcmp(argv[i], "legacy-it")) legacy = 1;
+            else if (!strcmp(argv[i], "en")) legacy = 0;
+            else { fprintf(stderr,
+                "w2filter: invalid --format: %s\n", argv[i]); return 2; }
         } else {                                /* F6: never silent */
             fprintf(stderr, "w2filter: unknown option: %s\n",
                     argv[i]);
@@ -376,19 +407,29 @@ int main(int argc, char **argv) {
         fprintf(stderr, "w2filter: N must be in [3,%d]\n", NMAX);
         return 2;
     }
+    /* provenance header: every worker log self-documents */
+    fprintf(stderr, "w2filter %s | N=%d cycles=", W2FILTER_VERSION, N);
+    print_set(stderr, cycset);
+    fprintf(stderr, " pairset=");
+    print_set(stderr, goodset);
+    if (do_deg) fprintf(stderr, " degeneracy=%d", degcap);
+    else        fprintf(stderr, " degeneracy=off");
+    fprintf(stderr, " pairs=%s format=%s\n",
+            do_pairs ? "on" : "off", legacy ? "legacy-it" : "en");
     char line[256];
     long long seen = 0, found = 0, rejected = 0;
-    /* Output labels (BLOCCO-W2, graftabili, visti, scartati) are
-     * FROZEN: they must match the golden anchor tests and the
-     * shipped production logs of the (19,28) campaign in results/.
-     * See README for a legend. */
+    /* --format legacy-it reproduces the v1.0.0 output labels
+     * byte-for-byte (BLOCCO-W2, graftabili, visti, scartati): they
+     * match the shipped production logs of the (19,28) campaign in
+     * results/. The default labels are English since 1.1.0. */
     while (fgets(line, sizeof line, stdin)) {
         int L = strlen(line);
         while (L && (line[L-1] == '\n' || line[L-1] == '\r')) line[--L] = 0;
         if (!L) continue;
         seen++; c_seen++;
         if (seen % 100000000LL == 0)
-            { printf("...visti %lld\n", seen); fflush(stdout); }
+            { printf(legacy ? "...visti %lld\n" : "...seen %lld\n",
+                     seen); fflush(stdout); }
         if (parse_g6(line)) {
             rejected++;              /* F3: never discard silently */
             if (rejected <= 10)
@@ -398,24 +439,33 @@ int main(int argc, char **argv) {
         }
         if (quick_long()) { c_quick++; continue; }  /* fast kill     */
         if (exact_long()) { c_exact++; continue; }  /* exact verdict */
-        if (!is_2deg())   { c_deg++;   continue; }  /* class hypothesis */
+        if (do_deg && !is_2deg()) { c_deg++; continue; }  /* hypothesis */
         found++; c_found++;
-        printf("BLOCCO-W2 V=%d g6=%s graftabili=[", N, line);
-        int first = 1;
-        for (int u = 0; u < N; u++)
-            for (int v = u + 1; v < N; v++) {
-                unsigned T;
-                if (pair_graftable(u, v, &T)) {
-                    printf("%s(%d,%d)", first ? "" : ", ", u, v);
-                    first = 0;
+        printf("%s V=%d g6=%s", legacy ? "BLOCCO-W2" : "BLOCK", N, line);
+        if (do_pairs) {
+            printf(legacy ? " graftabili=[" : " pairs=[");
+            int first = 1;
+            for (int u = 0; u < N; u++)
+                for (int v = u + 1; v < N; v++) {
+                    unsigned T;
+                    if (pair_graftable(u, v, &T)) {
+                        printf("%s(%d,%d)", first ? "" : ", ", u, v);
+                        first = 0;
+                    }
                 }
-            }
-        printf("]\n"); fflush(stdout);
+            printf("]");
+        }
+        printf("\n"); fflush(stdout);
     }
-    printf("WORKER DONE: visti=%lld blocchi-w2=%lld scartati=%lld\n",
+    printf(legacy
+           ? "WORKER DONE: visti=%lld blocchi-w2=%lld scartati=%lld\n"
+           : "WORKER DONE: seen=%lld blocks=%lld discarded=%lld\n",
            seen, found, rejected);
-    fprintf(stderr, "STATS: visti=%lld quick=%lld exact=%lld "
-            "2deg=%lld superstiti=%lld scartati=%lld\n",
+    fprintf(stderr, legacy
+            ? "STATS: visti=%lld quick=%lld exact=%lld "
+              "2deg=%lld superstiti=%lld scartati=%lld\n"
+            : "STATS: seen=%lld quick=%lld exact=%lld "
+              "deg=%lld survivors=%lld discarded=%lld\n",
             c_seen, c_quick, c_exact, c_deg, c_found, rejected);
     /* exit 3 if lines were discarded: stream exhaustiveness is
      * part of the contract; the caller MUST notice. */

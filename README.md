@@ -72,23 +72,34 @@ nauty-geng -q -c 12 17:17 | ./w2filter 12 --cycles 3,5,6,7,9,11 --pairset 1,3,5
 ```
 
 `./w2filter --help` prints the interface; `--version` the release.
-Parallelism: geng res/mod splitting (`$i/8`). Per-stage statistics
-go to stderr (`STATS: …`). With non-default windows, check whether
+Further options: `--degeneracy K` (peeling threshold, default 2),
+`--no-degeneracy` (skip that stage: REQUIRED for censuses of
+classes with minimum degree ≥ 3, which are never 2-degenerate),
+`--no-pairs` (skip pair classification), `--format legacy-it`
+(v1.0.0 output labels).
+Parallelism: geng res/mod splitting (`$i/8`); residue classes are
+uneven, so on many cores use a mod much larger than the core count.
+Per-stage statistics go to stderr (`STATS: …`). With non-default
+windows, check whether
 geng's `-f` (C₄-free) remains a valid pre-filter for your
 parameters; if not, drop it: `exact_long` re-checks every cycle
 length against W in either case.
 
 ## Output format
 
-One stdout line per surviving block:
-`BLOCCO-W2 V=<n> g6=<graph6> graftabili=[(u,v), ...]`, then a final
-`WORKER DONE: visti=<seen> blocchi-w2=<blocks> scartati=<discarded>`;
-per-stage statistics (`STATS: ...`) go to stderr and a progress line
-`...visti N` is printed every 10⁸ graphs. The (Italian) labels are
-frozen in v1.0.0: they are asserted by the golden tests and match
-the shipped campaign logs in `results/`. Legend: *visti* = seen,
-*blocchi* = blocks, *scartati* = discarded, *superstiti* =
-survivors, *graftabili* = graftable pairs.
+One stdout line per surviving graph:
+`BLOCK V=<n> g6=<graph6> pairs=[(u,v), ...]`, then a final
+`WORKER DONE: seen=<n> blocks=<n> discarded=<n>`; per-stage
+statistics (`STATS: ...`) and a one-line provenance header (version
+and full parameter set) go to stderr, and a progress line
+`...seen N` is printed every 10⁸ graphs.
+
+`--format legacy-it` reproduces the v1.0.0 Italian labels
+byte-for-byte (`BLOCCO-W2`, `graftabili`, `visti`, `scartati`):
+that is the format of the shipped campaign logs in `results/`
+(legend: *visti* = seen, *blocchi* = blocks, *scartati* =
+discarded, *superstiti* = survivors, *graftabili* = graftable
+pairs).
 
 ## Guarantees and limits
 
